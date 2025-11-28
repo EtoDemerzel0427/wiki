@@ -12,6 +12,34 @@
     "electron:build": "vite build && electron-builder",
     "gen-content": "node scripts/generate-content.js"
   },
+  "build": {
+    "appId": "club.huangweiran.metawiki",
+    "productName": "MetaWiki",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "scripts/**/*"
+    ],
+    "extraResources": [
+      "content/**/*",
+      "public/**/*"
+    ],
+    "mac": {
+      "target": "dmg",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
   "main": "electron/main.cjs",
   "dependencies": {
     "lucide-react": "^0.555.0",
@@ -31,6 +59,7 @@
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^39.2.4",
+    "electron-builder": "^26.0.12",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",

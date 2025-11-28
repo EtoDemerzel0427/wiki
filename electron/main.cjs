@@ -126,11 +126,11 @@ app.on('window-all-closed', () => {
 
 // Helper to get absolute path
 const getPath = (relativePath) => {
-    // In dev, relative to project root. In prod, might need adjustment.
-    // For now, let's assume we are running from project root or providing absolute paths.
-    // Actually, let's make the frontend send paths relative to the 'content' directory usually,
-    // but for flexibility, let's assume the frontend knows the structure or we define a root.
-    // Let's define the content root as the 'content' folder in the project.
+    if (app.isPackaged) {
+        // In production, resources are in process.resourcesPath
+        return path.join(process.resourcesPath, relativePath);
+    }
+    // In dev, relative to project root
     return path.join(__dirname, '..', relativePath);
 };
 
@@ -205,7 +205,12 @@ ipcMain.handle('get-root-path', () => {
 
 ipcMain.handle('run-generator', async () => {
     const { exec } = require('child_process');
-    const scriptPath = path.join(__dirname, '../scripts/generate-content.js');
+    let scriptPath;
+    if (app.isPackaged) {
+        scriptPath = path.join(process.resourcesPath, 'scripts/generate-content.js');
+    } else {
+        scriptPath = path.join(__dirname, '../scripts/generate-content.js');
+    }
 
     return new Promise((resolve) => {
         exec(`node "${scriptPath}"`, (error, stdout, stderr) => {

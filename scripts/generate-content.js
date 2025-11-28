@@ -133,8 +133,25 @@ async function generate() {
         });
     }
 
-    await fs.outputJSON(OUTPUT_FILE, nodes);
-    console.log(`✅ Generated content.json with ${nodes.length} nodes.`);
+    // Read config
+    let config = { title: "MetaWiki" };
+    const configPath = path.join(CONTENT_DIR, '_config.json');
+    if (fs.existsSync(configPath)) {
+        try {
+            const configContent = fs.readFileSync(configPath, 'utf-8');
+            config = JSON.parse(configContent);
+        } catch (e) {
+            console.error("Failed to read config:", e);
+        }
+    }
+
+    const output = {
+        nodes: nodes,
+        config: config
+    };
+
+    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(output, null, 2));
+    console.log(`Generated content.json with ${nodes.length} items`);
 }
 
 generate();

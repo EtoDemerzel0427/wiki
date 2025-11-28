@@ -95,7 +95,9 @@ export default function App() {
     handleCreateDir,
     handleDelete,
     handleRename: fsHandleRename,
-    handleReorder
+    handleReorder,
+    wikiConfig,
+    saveConfig
   } = useFileSystem();
 
   const [activeNoteId, setActiveNoteId] = useState(null);
@@ -148,6 +150,17 @@ export default function App() {
     item: null, // For rename/delete/create context
     parentId: null // Explicit parentId for creation
   });
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTitle, setSettingsTitle] = useState('');
+
+  useEffect(() => {
+    if (wikiConfig?.title) {
+      setSettingsTitle(wikiConfig.title);
+      // Update document title
+      document.title = wikiConfig.title;
+    }
+  }, [wikiConfig]);
 
   // State for View Mode Metadata
   const [viewMetadata, setViewMetadata] = useState({});
@@ -506,7 +519,7 @@ export default function App() {
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 z-20">
         <span className="font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
-          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="w-6 h-6" /> Weiran's Wiki
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="w-6 h-6" /> {wikiConfig?.title || "MetaWiki"}
         </span>
         <div className="flex gap-2">
           <button onClick={() => setDarkMode(!darkMode)} className="p-2 text-slate-600 dark:text-slate-400">
@@ -538,6 +551,8 @@ export default function App() {
         onDelete={(item) => openModal('delete', item)}
         onRename={(item) => openModal('rename', item)}
         onReorder={handleReorder}
+        wikiTitle={wikiConfig?.title || "MetaWiki"}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -659,6 +674,31 @@ export default function App() {
           )
         }
       </Modal >
+
+      {/* Settings Modal */}
+      <Modal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        title="Settings"
+        onConfirm={() => {
+          saveConfig({ title: settingsTitle });
+          setIsSettingsOpen(false);
+        }}
+        confirmText="Save"
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            Wiki Title
+          </label>
+          <input
+            type="text"
+            value={settingsTitle}
+            onChange={(e) => setSettingsTitle(e.target.value)}
+            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Enter wiki title..."
+          />
+        </div>
+      </Modal>
     </div >
   );
 }

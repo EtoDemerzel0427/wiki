@@ -4,6 +4,7 @@ import { parseFrontmatter, stringifyFrontmatter } from '../utils/frontmatter';
 
 export const useFileSystem = () => {
     const [notes, setNotes] = useState([]);
+    const [wikiConfig, setWikiConfig] = useState({ title: "MetaWiki" });
     const [loading, setLoading] = useState(true);
 
     const loadNotes = useCallback(async (isBackground = false) => {
@@ -11,10 +12,6 @@ export const useFileSystem = () => {
         try {
             let data;
             if (isElectron()) {
-                // In Electron, read directly from disk to bypass Vite server cache
-                // We assume content.json is in the public folder (or root in prod)
-                // For dev mode, it's in public/content.json relative to project root.
-                // Our readFile handler uses fs.readFile which resolves relative to CWD (project root).
                 const jsonContent = await readFile('public/content.json');
                 data = JSON.parse(jsonContent);
             } else {
@@ -28,7 +25,14 @@ export const useFileSystem = () => {
                 if (!response.ok) throw new Error('Failed to load content');
                 data = await response.json();
             }
-            setNotes(data);
+
+            // Handle new format { nodes: [], config: {} } vs old format []
+            if (Array.isArray(data)) {
+                setNotes(data);
+            } else if (data.nodes) {
+                setNotes(data.nodes);
+                if (data.config) setWikiConfig(data.config);
+            }
         } catch (err) {
             console.error("Failed to load content:", err);
         } finally {
@@ -330,6 +334,26 @@ category: ${initialCategory}
         }
     };
 
+    const saveConfig = async (newConfig) => {
+        if (!isElectron()) return;
+        try {
+            // Update local state
+            setWikiConfig(prev => ({ ...prev, ...newConfig }));
+
+            // Save to disk via IPC
+            // We need a new IPC handler for this, or use writeFile to update _config.json
+            // Let's use writeFile to content/_config.json
+            const configPath = 'content/_config.json';
+            await writeFile(configPath, JSON.stringify(newConfig, null, 2));
+
+            // Trigger generator to update content.json
+            await window.electronAPI.runGenerator();
+        } catch (error) {
+            console.error("Failed to save config:", error);
+            alert("Failed to save settings: " + error.message);
+        }
+    };
+
     const removeFromMeta = async (parentId, nameToRemove) => {
         const parentPath = parentId ? `content/${parentId}` : 'content';
         const metaPath = `${parentPath}/_meta.json`;
@@ -353,6 +377,9 @@ category: ${initialCategory}
         handleCreateDir,
         handleDelete,
         handleRename,
-        handleReorder
+        handleRename,
+        handleReorder,
+        wikiConfig,
+        saveConfig
     };
 };
