@@ -38,7 +38,18 @@
     },
     "linux": {
       "target": "AppImage"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "EtoDemerzel0427",
+        "repo": "wiki"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EtoDemerzel0427/wiki.git"
   },
   "main": "electron/main.cjs",
   "dependencies": {
