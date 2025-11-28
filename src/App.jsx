@@ -351,7 +351,7 @@ export default function App() {
     blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-indigo-500 pl-4 py-2 my-4 bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 italic rounded-r" {...props} />,
     ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-5 space-y-1 marker:text-indigo-500" {...props} />,
     ol: ({ node, ...props }) => <ol className="list-decimal list-outside ml-5 space-y-1 marker:text-indigo-500" {...props} />,
-    li: ({ node, ...props }) => <li className="pl-1" {...props} />,
+    li: ({ node, ...props }) => <li className="pl-1 text-slate-700 dark:text-slate-300" {...props} />,
     a: ({ node, href, children, ...props }) => {
       // Handle internal links [[Title]] -> converted to [Title](Title) or similar by remark plugins? 
       // Or just handle standard markdown links. 
