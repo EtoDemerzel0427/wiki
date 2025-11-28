@@ -553,10 +553,15 @@ export default function App() {
               </div>
 
               <div className="mt-24 pt-8 border-t border-slate-100 dark:border-slate-800">
-                <p className="text-slate-400 text-sm flex items-center justify-center gap-2">
+                <a
+                  href={`https://github.com/EtoDemerzel0427/wiki/blob/main/content/${activeNote.id}.md`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-slate-400 text-sm flex items-center justify-center gap-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                >
                   <Github size={14} />
-                  <span className="hover:underline cursor-pointer">Edit this page on GitHub</span>
-                </p>
+                  <span className="hover:underline">Edit this page on GitHub</span>
+                </a>
               </div>
             </div>
           </div>
