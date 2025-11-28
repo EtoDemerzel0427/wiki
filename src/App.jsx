@@ -45,6 +45,35 @@ const buildTree = (items) => {
     }
   });
 
+  // Sort children
+  const sortNodes = (nodes) => {
+    return nodes.sort((a, b) => {
+      // 1. Sort by sortIndex
+      if (a.sortIndex !== undefined && b.sortIndex !== undefined) {
+        if (a.sortIndex !== b.sortIndex) {
+          return a.sortIndex - b.sortIndex;
+        }
+      }
+
+      // 2. Fallback: Folders first, then alphabetical
+      if (a.isFolder !== b.isFolder) {
+        return a.isFolder ? -1 : 1;
+      }
+
+      return a.title.localeCompare(b.title);
+    });
+  };
+
+  // Sort root items
+  sortNodes(rootItems);
+
+  // Sort children of all items
+  Object.values(lookup).forEach(node => {
+    if (node.children.length > 0) {
+      sortNodes(node.children);
+    }
+  });
+
   return rootItems;
 };
 
@@ -513,6 +542,10 @@ export default function App() {
                     remarkPlugins={[remarkMath]}
                     rehypePlugins={[rehypeKatex]}
                     components={customComponents}
+                    urlTransform={(url) => {
+                      if (url.startsWith('wiki:')) return url;
+                      return url;
+                    }}
                   >
                     {processContent(activeNote.content)}
                   </ReactMarkdown>
