@@ -1,4 +1,22 @@
-# Meta Wiki
+<div align="center">
+  <img src="public/logo.png" alt="MetaWiki Logo" width="120" height="120" />
+  <h1>Meta Wiki</h1>
+  <p>
+    <b>A modern, personal wiki application built with React, Vite, and Electron.</b>
+  </p>
+  <p>
+    <a href="https://github.com/EtoDemerzel0427/wiki/releases">
+      <img src="https://img.shields.io/github/v/release/EtoDemerzel0427/wiki?style=for-the-badge&color=blue" alt="GitHub Release" />
+    </a>
+  </p>
+  <p>
+    <b>Latest Release: v0.1.0 is out!</b> <a href="https://github.com/EtoDemerzel0427/wiki/releases">Download for macOS/Windows/Linux</a>
+  </p>
+  <p>
+    <img src="docs/images/web-view.png" alt="Web View" width="45%" />
+    <img src="docs/images/app-split-view.png" alt="App Split View" width="45%" />
+  </p>
+</div>
 
 A modern, personal wiki application built with React, Vite, and Tailwind CSS. It features a file-based content system, Markdown rendering with math and code support, and a responsive, beautiful UI.
 
@@ -100,7 +118,13 @@ This project also includes a desktop application wrapper built with Electron, pr
     ```bash
     npm run electron:build
     ```
-    The executable will be in the `dist/` folder.
+    The executable will be in the `dist_electron/` folder.
+
+    > **Note for macOS Users:**
+    > If you see a "damaged" error when opening the app, run this command in your terminal to bypass Gatekeeper:
+    > ```bash
+    > xattr -cr /Applications/MetaWiki.app
+    > ```
 
 ## Deployment
 
