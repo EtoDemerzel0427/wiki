@@ -1,7 +1,7 @@
 {
   "name": "wiki",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,12 +9,13 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
-    "electron:build": "vite build && electron-builder",
+    "electron:build": "cross-env ELECTRON_BUILD=true vite build && electron-builder",
     "gen-content": "node scripts/generate-content.js"
   },
   "build": {
     "appId": "club.huangweiran.metawiki",
     "productName": "MetaWiki",
+    "icon": "public/logo.png",
     "directories": {
       "output": "dist_electron"
     },

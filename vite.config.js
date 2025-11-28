@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: mode === 'production' ? '/wiki/' : '/',
+  base: process.env.ELECTRON_BUILD === 'true' ? './' : (mode === 'production' ? '/wiki/' : '/'),
   build: {
     rollupOptions: {
       output: {

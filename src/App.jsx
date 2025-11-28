@@ -241,24 +241,16 @@ export default function App() {
     }
   };
 
-  // Helper to get base path
-  const getBasePath = () => {
-    return import.meta.env.BASE_URL.endsWith('/')
-      ? import.meta.env.BASE_URL
-      : `${import.meta.env.BASE_URL}/`;
-  };
-
   // Helper to update URL
   const updateUrl = (identifier) => {
-    const basePath = getBasePath();
-    // Find note to check for slug
     const note = notes.find(n => n.id === identifier || n.slug === identifier);
     const pathSegment = note?.slug || identifier;
 
-    const newPath = pathSegment ? `${basePath}${pathSegment}` : basePath;
-
-    if (window.location.pathname !== newPath) {
-      window.history.pushState({}, '', newPath);
+    if (pathSegment) {
+      window.location.hash = pathSegment;
+    } else {
+      // Clear hash if going to root/default? Or keep current behavior
+      window.history.pushState("", document.title, window.location.pathname + window.location.search);
     }
   };
 
@@ -266,29 +258,21 @@ export default function App() {
   useEffect(() => {
     if (loading || notes.length === 0) return;
 
-    // Check URL for note ID (Path based)
-    const basePath = getBasePath();
-    const path = window.location.pathname;
+    // Check URL for note ID (Hash based)
+    const hash = window.location.hash.substring(1); // Remove '#'
     let noteIdFromUrl = null;
 
-    if (path.startsWith(basePath)) {
-      const relativePath = path.substring(basePath.length);
-      if (relativePath && relativePath !== '') {
-        noteIdFromUrl = decodeURIComponent(relativePath);
-      }
-    } else if (path.startsWith('/')) {
-      const potentialId = path.substring(1);
-      if (notes.some(n => n.id === potentialId)) {
-        noteIdFromUrl = decodeURIComponent(potentialId);
-      }
+    if (hash) {
+      noteIdFromUrl = decodeURIComponent(hash);
     }
 
-    // Handle redirect from 404.html (query param 'p')
+    // Handle redirect from 404.html (query param 'p') - keep for backward compat if needed
     const params = new URLSearchParams(window.location.search);
     const redirectPath = params.get('p');
     if (redirectPath) {
       noteIdFromUrl = decodeURIComponent(redirectPath);
-      updateUrl(noteIdFromUrl);
+      // Convert to hash
+      window.location.hash = noteIdFromUrl;
     }
 
     let targetNote = null;
@@ -302,8 +286,9 @@ export default function App() {
 
     if (targetNote) {
       setActiveNoteId(targetNote.id);
-      if (targetNote.id !== noteIdFromUrl) {
-        updateUrl(targetNote.id);
+      // Ensure hash matches
+      if (targetNote.slug && hash !== targetNote.slug) {
+        window.history.replaceState(null, null, `#${targetNote.slug}`);
       }
 
       // Expand parents
@@ -316,17 +301,29 @@ export default function App() {
         }
         setExpandedNodes(prev => [...new Set([...prev, ...parents])]);
       }
-    } else if (decodedPath) {
-      // If a path was in the URL but no matching note found,
-      // set activeNoteId to the decodedPath. This might be a new file
-      // not yet in `notes` or a non-existent path.
-      setActiveNoteId(decodedPath);
+    } else if (noteIdFromUrl) {
+      // If a path was in the URL but no matching note found
+      setActiveNoteId(noteIdFromUrl);
     }
 
     // Expand root folders
     const rootFolders = notes.filter(n => !n.parentId && n.isFolder).map(n => n.id);
     setExpandedNodes(prev => [...new Set([...prev, ...rootFolders])]);
-  }, [loading, notes, location.pathname]); // Depend on location.pathname to react to URL changes
+  }, [loading, notes]); // Removed location.pathname dependency as we use hash now
+
+  // Handle hash change
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.substring(1);
+      if (hash) {
+        const noteId = decodeURIComponent(hash);
+        const target = notes.find(n => n.id === noteId || n.slug === noteId);
+        if (target) setActiveNoteId(target.id);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [notes]);
 
   // Load content when activeNoteId changes
   useEffect(() => {
@@ -429,26 +426,7 @@ export default function App() {
     }
   };
 
-  // Handle browser back/forward
-  useEffect(() => {
-    const handlePopState = () => {
-      const basePath = getBasePath();
-      const path = window.location.pathname;
-      let noteId = null;
 
-      if (path.startsWith(basePath)) {
-        const relativePath = path.substring(basePath.length);
-        if (relativePath) noteId = decodeURIComponent(relativePath);
-      }
-
-      if (noteId && notes.length > 0) {
-        const target = notes.find(n => n.id === noteId || n.slug === noteId);
-        if (target) setActiveNoteId(target.id);
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [notes]);
 
   // Toggle Dark Mode
   useEffect(() => {
