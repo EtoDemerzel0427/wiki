@@ -405,7 +405,7 @@ export default function App() {
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 z-20">
         <span className="font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
-          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="w-6 h-6" /> Wiki
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="w-6 h-6" /> Weiran's Wiki
         </span>
         <div className="flex gap-2">
           <button onClick={() => setDarkMode(!darkMode)} className="p-2 text-slate-600 dark:text-slate-400">
@@ -422,7 +422,7 @@ export default function App() {
         <div className="p-5 hidden md:flex items-center justify-between border-b border-transparent">
           <h1 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="w-8 h-8" />
-            Wiki
+            Weiran's Wiki
           </h1>
           <button onClick={() => setDarkMode(!darkMode)} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition-colors">
             {darkMode ? <Sun size={16} /> : <Moon size={16} />}
