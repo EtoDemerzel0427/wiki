@@ -1,9 +1,33 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { promises: fsPromises } = fs;
 
+const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
+
+const loadSettings = () => {
+    try {
+        if (fs.existsSync(SETTINGS_FILE)) {
+            const data = fs.readFileSync(SETTINGS_FILE, 'utf-8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('Failed to load settings:', error);
+    }
+    return { autoSave: false };
+};
+
+const saveSettings = (settings) => {
+    try {
+        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+    } catch (error) {
+        console.error('Failed to save settings:', error);
+    }
+};
+
 function createWindow() {
+    const settings = loadSettings();
+
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
@@ -15,6 +39,61 @@ function createWindow() {
     });
 
     const isDev = process.env.NODE_ENV === 'development';
+
+    if (isDev) {
+        process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+    }
+
+    // Menu Template
+    const template = [
+        {
+            label: 'File',
+            submenu: [
+                {
+                    label: 'Auto Save',
+                    type: 'checkbox',
+                    checked: settings.autoSave,
+                    click: (menuItem) => {
+                        const newSettings = loadSettings();
+                        newSettings.autoSave = menuItem.checked;
+                        saveSettings(newSettings);
+                        win.webContents.send('auto-save-change', menuItem.checked);
+                    }
+                },
+                { type: 'separator' },
+                { role: 'quit' }
+            ]
+        },
+        {
+            label: 'Edit',
+            submenu: [
+                { role: 'undo' },
+                { role: 'redo' },
+                { type: 'separator' },
+                { role: 'cut' },
+                { role: 'copy' },
+                { role: 'paste' },
+                { role: 'selectAll' }
+            ]
+        },
+        {
+            label: 'View',
+            submenu: [
+                { role: 'reload' },
+                { role: 'forceReload' },
+                { role: 'toggleDevTools' },
+                { type: 'separator' },
+                { role: 'resetZoom' },
+                { role: 'zoomIn' },
+                { role: 'zoomOut' },
+                { type: 'separator' },
+                { role: 'togglefullscreen' }
+            ]
+        }
+    ];
+
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
 
     if (isDev) {
         win.loadURL('http://localhost:5173/'); // Vite dev server URL
@@ -140,4 +219,13 @@ ipcMain.handle('run-generator', async () => {
             resolve({ success: true });
         });
     });
+});
+
+ipcMain.handle('get-auto-save-status', () => {
+    const menu = Menu.getApplicationMenu();
+    if (!menu) return false;
+    const fileMenu = menu.items.find(item => item.label === 'File');
+    if (!fileMenu) return false;
+    const autoSave = fileMenu.submenu.items.find(item => item.label === 'Auto Save');
+    return autoSave ? autoSave.checked : false;
 });

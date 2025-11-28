@@ -6,8 +6,8 @@ export const useFileSystem = () => {
     const [notes, setNotes] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const loadNotes = useCallback(async () => {
-        setLoading(true);
+    const loadNotes = useCallback(async (isBackground = false) => {
+        if (!isBackground) setLoading(true);
         try {
             let data;
             if (isElectron()) {
@@ -32,7 +32,7 @@ export const useFileSystem = () => {
         } catch (err) {
             console.error("Failed to load content:", err);
         } finally {
-            setLoading(false);
+            if (!isBackground) setLoading(false);
         }
     }, []);
 

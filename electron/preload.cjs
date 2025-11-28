@@ -9,4 +9,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     renamePath: (oldPath, newPath) => ipcRenderer.invoke('rename-path', oldPath, newPath),
     getRootPath: () => ipcRenderer.invoke('get-root-path'),
     runGenerator: () => ipcRenderer.invoke('run-generator'),
+    onAutoSaveChange: (callback) => ipcRenderer.on('auto-save-change', (event, value) => callback(value)),
+    getAutoSaveStatus: () => ipcRenderer.invoke('get-auto-save-status'),
 });

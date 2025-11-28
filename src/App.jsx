@@ -1,9 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark, oneLight, tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import 'katex/dist/katex.min.css'; // Import KaTeX CSS
 
 import {
@@ -28,6 +23,7 @@ import {
   Eye
 } from 'lucide-react';
 import Editor from './components/Editor';
+import Preview from './components/Preview';
 import Sidebar from './components/Sidebar';
 import Modal from './components/Modal';
 import { isElectron, readFile, writeFile } from './utils/fileSystem';
@@ -111,6 +107,37 @@ export default function App() {
   // const [loading, setLoading] = useState(true); // Handled by hook
   const [isEditMode, setIsEditMode] = useState(false);
   const [fileContent, setFileContent] = useState(''); // Store fresh content from disk
+  const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(false);
+
+  // Auto-Save Effect
+  useEffect(() => {
+    if (!isElectron()) return;
+
+    // Check initial status
+    window.electronAPI.getAutoSaveStatus().then(setIsAutoSaveEnabled);
+
+    // Listen for changes
+    const unsubscribe = window.electronAPI.onAutoSaveChange((enabled) => {
+      setIsAutoSaveEnabled(enabled);
+    });
+
+    return () => {
+      // Cleanup if needed (though onAutoSaveChange returns void currently, 
+      // we might want to implement removeListener in preload if strict cleanup is needed.
+      // For now, this is fine as App is root.)
+    };
+  }, []);
+
+  // Debounced Auto-Save
+  useEffect(() => {
+    if (!isAutoSaveEnabled || !activeNoteId || !isEditMode) return;
+
+    const timer = setTimeout(() => {
+      handleSaveContent(fileContent);
+    }, 1000); // 1 second debounce
+
+    return () => clearTimeout(timer);
+  }, [fileContent, isAutoSaveEnabled, activeNoteId, isEditMode]);
 
   // Modal State
   const [modalConfig, setModalConfig] = useState({
@@ -325,8 +352,12 @@ export default function App() {
       }
     };
     loadContent();
-    setIsEditMode(false); // Reset edit mode on navigation
   }, [activeNoteId, notes]);
+
+  // Reset edit mode when navigating to a new note
+  useEffect(() => {
+    setIsEditMode(false);
+  }, [activeNoteId]);
 
   const handleSaveContent = async (newContent) => {
     if (!activeNoteId) return;
@@ -375,7 +406,7 @@ export default function App() {
       if (isElectron() && window.electronAPI?.runGenerator) {
         await window.electronAPI.runGenerator();
         // Reload notes to ensure full consistency (e.g. if category changed and folder structure needs update)
-        await loadNotes();
+        await loadNotes(true);
       }
 
       // Optional: Show success notification
@@ -465,87 +496,6 @@ export default function App() {
 
   const activeNote = notes.find(n => n.id === activeNoteId);
 
-  // Custom components for ReactMarkdown
-  const markdownComponents = {
-    code({ node, inline, className, children, ...props }) {
-      const match = /language-(\w+)/.exec(className || '');
-      return !inline && match ? (
-        <div className="my-6 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-[#2d2d2d] shadow-sm group">
-          <div className="flex justify-between items-center px-4 py-1.5 bg-[#1f1f1f] border-b border-gray-700">
-            <span className="text-xs font-mono text-gray-400">{match[1]}</span>
-            <div className="flex gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500/80"></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500/80"></div>
-            </div>
-          </div>
-          <SyntaxHighlighter
-            style={tomorrow}
-            language={match[1]}
-            PreTag="div"
-            customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
-            {...props}
-          >
-            {String(children).replace(/\n$/, '')}
-          </SyntaxHighlighter>
-        </div>
-      ) : (
-        <code className="bg-slate-100 dark:bg-slate-800 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded text-sm font-mono mx-1 border border-slate-200 dark:border-slate-700" {...props}>
-          {children}
-        </code>
-      );
-    },
-    h1: ({ node, ...props }) => <h1 className="text-3xl font-bold text-slate-900 dark:text-white mt-8 mb-4 pb-2 border-b border-slate-200 dark:border-slate-800" {...props} />,
-    h2: ({ node, ...props }) => <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-6 mb-3" {...props} />,
-    h3: ({ node, ...props }) => <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mt-5 mb-2" {...props} />,
-    blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-indigo-500 pl-4 py-2 my-4 bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 italic rounded-r" {...props} />,
-    ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-5 space-y-1 marker:text-indigo-500" {...props} />,
-    ol: ({ node, ...props }) => <ol className="list-decimal list-outside ml-5 space-y-1 marker:text-indigo-500" {...props} />,
-    li: ({ node, ...props }) => <li className="pl-1 text-slate-700 dark:text-slate-300" {...props} />,
-    a: ({ node, href, children, ...props }) => {
-      // Handle internal links [[Title]] -> converted to [Title](Title) or similar by remark plugins? 
-      // Or just handle standard markdown links. 
-      // The user used [[Title]] syntax. react-markdown doesn't support [[WikiLinks]] by default without remark-wiki-link.
-      // But the user's parser handled it manually.
-      // We can use a regex to pre-process the content or use a plugin.
-      // For now, let's assume standard links or implement a simple pre-processor.
-      return <a href={href} className="text-indigo-600 dark:text-indigo-400 hover:underline decoration-2 font-medium inline-flex items-center gap-0.5" {...props}><LinkIcon size={12} />{children}</a>
-    },
-    img: ({ node, ...props }) => (
-      <div className="my-6 text-center">
-        <img className="rounded-lg shadow-sm max-w-full h-auto mx-auto border border-slate-200 dark:border-slate-800 inline-block" {...props} />
-        {props.alt && <p className="text-xs text-slate-500 mt-2">{props.alt}</p>}
-      </div>
-    ),
-    p: ({ node, ...props }) => <p className="mb-4 leading-7 text-slate-700 dark:text-slate-300" {...props} />
-  };
-
-  // Pre-process content to handle [[WikiLinks]]
-  const processContent = (content) => {
-    if (!content) return '';
-    // Replace [[Title]] with [Title](wiki:Title) - encode the title for the URL
-    return content.replace(/\[\[(.*?)\]\]/g, (match, title) => `[${title}](wiki:${encodeURIComponent(title)
-      })`);
-  };
-
-  const customComponents = {
-    ...markdownComponents,
-    a: ({ node, href, children, ...props }) => {
-      if (href && href.startsWith('wiki:')) {
-        const title = href.replace('wiki:', '');
-        return (
-          <span
-            onClick={() => handleNavigate(title, true)}
-            className="text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline decoration-2 font-medium inline-flex items-center gap-0.5"
-          >
-            <LinkIcon size={12} />{children}
-          </span>
-        );
-      }
-      return <a href={href} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline" {...props}>{children}</a>;
-    }
-  };
-
   if (loading) {
     return <div className="h-screen flex items-center justify-center text-slate-500">Loading wiki...</div>;
   }
@@ -593,90 +543,68 @@ export default function App() {
       {/* Main Content Area */}
       <div className="flex-1 h-full bg-white dark:bg-slate-950 flex flex-col relative overflow-hidden">
         {activeNote ? (
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {isEditMode ? (
-              <Editor
-                content={fileContent}
-                filePath={
-                  activeNote.parentId
-                    ? `content/${activeNote.parentId}/${activeNote.fileName}`
-                    : `content/${activeNote.fileName}`
-                }
-                onSave={handleSaveContent}
-                onChange={(newContent) => {
-                  setFileContent(newContent);
-                  // Update view state immediately
-                  const { metadata, body } = parseFrontmatter(newContent);
-                  setViewMetadata(metadata);
-                  setViewBody(body);
-                }}
-              />
-            ) : (
-              /* View Mode */
-              <div className="max-w-4xl mx-auto px-6 md:px-12 py-10 md:py-16 min-h-full flex flex-col">
-                <div className="flex-1">
-                  {/* Note Header */}
-                  <div className="mb-10">
-                    <div className="flex items-center gap-2 text-sm text-slate-400 mb-4">
-                      <Home size={14} />
-                      <span>/</span>
-                      <span>{viewMetadata.category || activeNote.category || 'General'}</span>
-                      <span>/</span>
-                      <span className="text-slate-600 dark:text-slate-300">{viewMetadata.title || activeNote.title}</span>
-                    </div>
-
-                    <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white mb-6 leading-tight tracking-tight">
-                      {viewMetadata.title || activeNote.title}
-                    </h1>
-
-                    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
-                      <div className="flex items-center gap-4 text-sm text-slate-500">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar size={14} />
-                          {/* Try to get date from viewMetadata if available, else fallback */}
-                          {viewMetadata.date || activeNote.date || 'No Date'}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        {(viewMetadata.tags
-                          ? (typeof viewMetadata.tags === 'string' ? viewMetadata.tags.split(',').map(t => t.trim()).filter(Boolean) : viewMetadata.tags)
-                          : activeNote.tags)?.map(tag => (
-                            <button
-                              key={tag}
-                              onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
-                              className={`px-2.5 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${selectedTag === tag
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                                }`}
-                            >
-                              <Tag size={10} />
-                              {tag}
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Note Body */}
-                  <div className="prose prose-slate dark:prose-invert max-w-none">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkMath]}
-                      rehypePlugins={[rehypeKatex]}
-                      components={customComponents}
-                      urlTransform={(url) => {
-                        if (url.startsWith('wiki:')) return url;
-                        return url;
-                      }}
-                    >
-                      {/* Strip frontmatter for display */}
-                      {processContent(fileContent.replace(/^---\s*[\r\n]+[\s\S]*?[\r\n]+---\s*[\r\n]*/, ''))}
-                    </ReactMarkdown>
-                  </div>
+          <>
+            {isEditMode && isElectron() ? (
+              <div className="flex-1 flex h-full overflow-hidden">
+                <div className="w-1/2 h-full border-r border-slate-200 dark:border-slate-800 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-900">
+                  <Preview
+                    content={fileContent}
+                    metadata={viewMetadata}
+                    activeNote={activeNote}
+                    onNavigate={(id) => handleNavigate(id)}
+                    selectedTag={selectedTag}
+                    onTagClick={setSelectedTag}
+                  />
+                </div>
+                <div className="w-1/2 h-full">
+                  <Editor
+                    content={fileContent}
+                    filePath={
+                      activeNote.parentId
+                        ? `content/${activeNote.parentId}/${activeNote.fileName}`
+                        : `content/${activeNote.fileName}`
+                    }
+                    onSave={handleSaveContent}
+                    onChange={(newContent) => {
+                      setFileContent(newContent);
+                      const { metadata, body } = parseFrontmatter(newContent);
+                      setViewMetadata(metadata);
+                      setViewBody(body);
+                    }}
+                  />
                 </div>
               </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                {isEditMode ? (
+                  <Editor
+                    content={fileContent}
+                    filePath={
+                      activeNote.parentId
+                        ? `content/${activeNote.parentId}/${activeNote.fileName}`
+                        : `content/${activeNote.fileName}`
+                    }
+                    onSave={handleSaveContent}
+                    onChange={(newContent) => {
+                      setFileContent(newContent);
+                      const { metadata, body } = parseFrontmatter(newContent);
+                      setViewMetadata(metadata);
+                      setViewBody(body);
+                    }}
+                  />
+                ) : (
+                  <Preview
+                    content={fileContent}
+                    metadata={viewMetadata}
+                    activeNote={activeNote}
+                    onNavigate={(id) => handleNavigate(id)}
+                    selectedTag={selectedTag}
+                    onTagClick={setSelectedTag}
+                  />
+                )}
+              </div>
             )}
-          </div >
+          </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-slate-400">
             Select a page to view or edit
