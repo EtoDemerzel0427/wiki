@@ -213,7 +213,7 @@ const Sidebar = ({
     }, []);
 
     return (
-        <div className={`${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-10 w-64 h-full bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 flex flex-col flex-shrink-0`}>
+        <div className={`${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-40 w-64 h-full bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 flex flex-col flex-shrink-0`}>
             <div className="p-5 hidden md:flex items-center justify-between border-b border-transparent">
                 <h1 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="w-8 h-8" />

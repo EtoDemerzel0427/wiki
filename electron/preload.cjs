@@ -11,4 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     runGenerator: () => ipcRenderer.invoke('run-generator'),
     onAutoSaveChange: (callback) => ipcRenderer.on('auto-save-change', (event, value) => callback(value)),
     getAutoSaveStatus: () => ipcRenderer.invoke('get-auto-save-status'),
+    selectContentFolder: () => ipcRenderer.invoke('select-content-folder'),
+    getSettings: () => ipcRenderer.invoke('get-settings'),
+    saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
 });

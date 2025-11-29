@@ -3,8 +3,12 @@ import path from 'path';
 import matter from 'gray-matter';
 import { glob } from 'glob';
 
-const CONTENT_DIR = path.join(process.cwd(), 'content');
-const OUTPUT_FILE = path.join(process.cwd(), 'public', 'content.json');
+const args = process.argv.slice(2);
+const customContentDir = args[0];
+const customOutputFile = args[1];
+
+const CONTENT_DIR = customContentDir || path.join(process.cwd(), 'content');
+const OUTPUT_FILE = customOutputFile || path.join(process.cwd(), 'public', 'content.json');
 
 async function generate() {
     const files = await glob('**/*.md', { cwd: CONTENT_DIR });

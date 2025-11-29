@@ -124,8 +124,25 @@ app.on('window-all-closed', () => {
 
 // --- IPC Handlers ---
 
+// --- IPC Handlers ---
+
 // Helper to get absolute path
 const getPath = (relativePath) => {
+    const settings = loadSettings();
+
+    // Handle custom content path
+    if (settings.contentPath) {
+        // If requesting content.json
+        if (relativePath === 'public/content.json') {
+            return path.join(settings.contentPath, 'content.json');
+        }
+        // If requesting a file in content/
+        if (relativePath.startsWith('content/')) {
+            const subPath = relativePath.replace(/^content\//, '');
+            return path.join(settings.contentPath, subPath);
+        }
+    }
+
     if (app.isPackaged) {
         // In production, resources are in process.resourcesPath
         return path.join(process.resourcesPath, relativePath);
@@ -147,7 +164,8 @@ ipcMain.handle('read-file', async (event, filePath) => {
 ipcMain.handle('write-file', async (event, filePath, content) => {
     try {
         const absolutePath = getPath(filePath);
-        // console.log(`[Main] Writing file to: ${absolutePath}`);
+        // Ensure directory exists for the file
+        await fsPromises.mkdir(path.dirname(absolutePath), { recursive: true });
         await fsPromises.writeFile(absolutePath, content, 'utf-8');
         return { success: true };
     } catch (error) {
@@ -159,6 +177,7 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
 ipcMain.handle('create-file', async (event, filePath, content = '') => {
     try {
         const absolutePath = getPath(filePath);
+        await fsPromises.mkdir(path.dirname(absolutePath), { recursive: true });
         await fsPromises.writeFile(absolutePath, content, 'utf-8');
         return { success: true };
     } catch (error) {
@@ -205,6 +224,8 @@ ipcMain.handle('get-root-path', () => {
 
 ipcMain.handle('run-generator', async () => {
     const { exec } = require('child_process');
+    const settings = loadSettings();
+
     let scriptPath;
     if (app.isPackaged) {
         scriptPath = path.join(process.resourcesPath, 'scripts/generate-content.js');
@@ -212,8 +233,16 @@ ipcMain.handle('run-generator', async () => {
         scriptPath = path.join(__dirname, '../scripts/generate-content.js');
     }
 
+    // Construct command with args if custom path is set
+    let command = `node "${scriptPath}"`;
+    if (settings.contentPath) {
+        const contentDir = settings.contentPath;
+        const outputFile = path.join(settings.contentPath, 'content.json');
+        command = `node "${scriptPath}" "${contentDir}" "${outputFile}"`;
+    }
+
     return new Promise((resolve) => {
-        exec(`node "${scriptPath}"`, (error, stdout, stderr) => {
+        exec(command, (error, stdout, stderr) => {
             if (error) {
                 console.error(`exec error: ${error}`);
                 resolve({ success: false, error: error.message });
@@ -233,4 +262,28 @@ ipcMain.handle('get-auto-save-status', () => {
     if (!fileMenu) return false;
     const autoSave = fileMenu.submenu.items.find(item => item.label === 'Auto Save');
     return autoSave ? autoSave.checked : false;
+});
+
+// Settings IPCs
+const { dialog } = require('electron');
+
+ipcMain.handle('select-content-folder', async () => {
+    const result = await dialog.showOpenDialog({
+        properties: ['openDirectory']
+    });
+    if (!result.canceled && result.filePaths.length > 0) {
+        return result.filePaths[0];
+    }
+    return null;
+});
+
+ipcMain.handle('get-settings', () => {
+    return loadSettings();
+});
+
+ipcMain.handle('save-settings', (event, newSettings) => {
+    saveSettings(newSettings);
+    // If content path changed, we might need to reload window or notify frontend
+    // For now, frontend handles reload
+    return { success: true };
 });

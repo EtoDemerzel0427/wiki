@@ -158,7 +158,7 @@ const Preview = ({
                         }}
                     >
                         {/* Strip frontmatter for display */}
-                        {processContent(content.replace(/^---\s*[\r\n]+[\s\S]*?[\r\n]+---\s*[\r\n]*/, ''))}
+                        {processContent(content ? content.replace(/^---\s*[\r\n]+[\s\S]*?[\r\n]+---\s*[\r\n]*/, '') : '')}
                     </ReactMarkdown>
                 </div>
             </div>

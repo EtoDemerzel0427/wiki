@@ -126,26 +126,21 @@ This project also includes a desktop application wrapper built with Electron, pr
     > xattr -cr /Applications/MetaWiki.app
     > ```
 
-## Deployment
-
-### GitHub Pages
-
-This project is configured to deploy to GitHub Pages.
-
-1.  **Configuration**:
-    - Ensure `vite.config.js` has the correct `base` URL. For a repository named `meta-wiki`, it should be `/wiki/` (or `/meta-wiki/` depending on your preference).
-    - Currently configured as: `/wiki/`.
-
-2.  **GitHub Actions**:
-    - The project includes a workflow file `.github/workflows/deploy.yml`.
-    - Simply push your changes to the `main` branch, and the action will automatically build and deploy the site.
-
-3.  **Manual Build**:
-    - To build the project locally:
-      ```bash
-      npm run build
-      ```
-    - The output will be in the `dist/` directory.
+## Publishing to the Web
+ 
+ If you are using the Desktop App and want to publish your notes as a website (like this one), follow these steps:
+ 
+ 1.  **Get the Web Engine**:
+     - Fork and clone this repository to your computer.
+ 
+ 2.  **Connect the App**:
+     - Open the Desktop App settings.
+     - In "Content Location", click **Browse** and select the `content` folder inside your cloned repository.
+     - Now, anything you write in the App is saved directly to your repository!
+ 
+ 3.  **Deploy**:
+     - **GitHub Pages**: Go to your repository Settings -> Pages, select "GitHub Actions" as the source. Then push your changes to the `main` branch.
+     - **Netlify/Vercel**: Connect your repository and use `npm run build` as the build command and `dist` as the output directory.
 
 ## Customization
 

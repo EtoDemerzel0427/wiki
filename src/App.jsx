@@ -162,6 +162,32 @@ export default function App() {
     }
   }, [wikiConfig]);
 
+  // Content Path State (Electron only)
+  const [contentPath, setContentPath] = useState('');
+
+  useEffect(() => {
+    if (isElectron() && window.electronAPI?.getSettings) {
+      window.electronAPI.getSettings().then(settings => {
+        if (settings.contentPath) {
+          setContentPath(settings.contentPath);
+        }
+      });
+    }
+  }, []);
+
+  const handleContentPathChange = async () => {
+    if (!isElectron() || !window.electronAPI?.selectContentFolder) return;
+
+    const path = await window.electronAPI.selectContentFolder();
+    if (path) {
+      setContentPath(path);
+      // We'll save this when the user clicks "Save" in the modal, 
+      // OR we could save immediately. Saving in modal confirm is better UX.
+      // But for simplicity and to ensure restart logic is clear, let's store it in a temp state?
+      // Actually, let's just update the state here and save in onConfirm.
+    }
+  };
+
   // State for View Mode Metadata
   const [viewMetadata, setViewMetadata] = useState({});
   const [viewBody, setViewBody] = useState('');
@@ -657,23 +683,76 @@ export default function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         title="Settings"
-        onConfirm={() => {
+        onConfirm={async () => {
           saveConfig({ title: settingsTitle });
+
+          if (isElectron() && window.electronAPI?.saveSettings) {
+            await window.electronAPI.saveSettings({ contentPath });
+            // Reload to apply changes
+            window.location.reload();
+          }
+
           setIsSettingsOpen(false);
         }}
         confirmText="Save"
       >
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Wiki Title
-          </label>
-          <input
-            type="text"
-            value={settingsTitle}
-            onChange={(e) => setSettingsTitle(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="Enter wiki title..."
-          />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Wiki Title
+            </label>
+            <input
+              type="text"
+              value={settingsTitle}
+              onChange={(e) => setSettingsTitle(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Enter wiki title..."
+            />
+          </div>
+
+          {isElectron() && (
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Content Location
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={contentPath || 'Default (App Resource)'}
+                  readOnly
+                  className={`flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 focus:outline-none cursor-not-allowed ${!contentPath ? 'italic' : ''}`}
+                />
+                <button
+                  onClick={handleContentPathChange}
+                  disabled={!contentPath && false} // Always allow browsing
+                  className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-md hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                >
+                  Browse...
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="checkbox"
+                  id="useDefaultPath"
+                  checked={!contentPath}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setContentPath('');
+                    }
+                  }}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="useDefaultPath" className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none">
+                  Use default location (App Resources)
+                </label>
+              </div>
+
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Select a folder containing your markdown content. The app will restart after changing this setting.
+              </p>
+            </div>
+          )}
         </div>
       </Modal>
     </div >
