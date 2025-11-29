@@ -104,13 +104,13 @@ function createWindow() {
 }
 
 // Ensure content.json exists before starting
+// Ensure content.json exists before starting
 const ensureContentGenerated = async () => {
     const settings = loadSettings();
-    const { exec } = require('child_process');
 
     let scriptPath;
     if (app.isPackaged) {
-        scriptPath = path.join(process.resourcesPath, 'scripts/generate-content.js');
+        scriptPath = path.join(app.getAppPath(), 'scripts/generate-content.js');
     } else {
         scriptPath = path.join(__dirname, '../scripts/generate-content.js');
     }
@@ -119,10 +119,6 @@ const ensureContentGenerated = async () => {
     let outputFile = path.join(__dirname, '../public/content.json'); // Default dev
 
     if (app.isPackaged) {
-        // In prod, default might be different, but let's assume resourcesPath/content for now if not set
-        // But wait, if not set, we use the bundled content.json?
-        // Actually, if settings.contentPath is NOT set, we rely on the bundled one.
-        // If it IS set, we must ensure it exists.
         if (!settings.contentPath) return;
     }
 
@@ -134,17 +130,15 @@ const ensureContentGenerated = async () => {
     // Check if output file exists
     if (!fs.existsSync(outputFile)) {
         console.log('[Main] content.json missing, generating...');
-        return new Promise((resolve) => {
-            const command = `node "${scriptPath}" "${contentDir}" "${outputFile}"`;
-            exec(command, (error, stdout, stderr) => {
-                if (error) {
-                    console.error(`[Main] Failed to generate content: ${error}`);
-                } else {
-                    console.log('[Main] Content generated successfully.');
-                }
-                resolve();
-            });
-        });
+        try {
+            const { pathToFileURL } = require('url');
+            const scriptUrl = pathToFileURL(scriptPath).href;
+            const { generateContent } = await import(scriptUrl);
+            await generateContent(contentDir, outputFile);
+            console.log('[Main] Content generated successfully.');
+        } catch (error) {
+            console.error(`[Main] Failed to generate content: ${error}`);
+        }
     }
 };
 
@@ -269,36 +263,33 @@ ipcMain.handle('get-root-path', () => {
 });
 
 ipcMain.handle('run-generator', async () => {
-    const { exec } = require('child_process');
     const settings = loadSettings();
 
     let scriptPath;
     if (app.isPackaged) {
-        scriptPath = path.join(process.resourcesPath, 'scripts/generate-content.js');
+        scriptPath = path.join(app.getAppPath(), 'scripts/generate-content.js');
     } else {
         scriptPath = path.join(__dirname, '../scripts/generate-content.js');
     }
 
-    // Construct command with args if custom path is set
-    let command = `node "${scriptPath}"`;
+    let contentDir = undefined;
+    let outputFile = undefined;
+
     if (settings.contentPath) {
-        const contentDir = settings.contentPath;
-        const outputFile = path.join(settings.contentPath, 'content.json');
-        command = `node "${scriptPath}" "${contentDir}" "${outputFile}"`;
+        contentDir = settings.contentPath;
+        outputFile = path.join(settings.contentPath, 'content.json');
     }
 
-    return new Promise((resolve) => {
-        exec(command, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`exec error: ${error}`);
-                resolve({ success: false, error: error.message });
-                return;
-            }
-            // console.log(`stdout: ${stdout}`);
-            if (stderr) console.error(`stderr: ${stderr}`);
-            resolve({ success: true });
-        });
-    });
+    try {
+        const { pathToFileURL } = require('url');
+        const scriptUrl = pathToFileURL(scriptPath).href;
+        const { generateContent } = await import(scriptUrl);
+        await generateContent(contentDir, outputFile);
+        return { success: true };
+    } catch (error) {
+        console.error(`Generator error: ${error}`);
+        return { success: false, error: error.message };
+    }
 });
 
 ipcMain.handle('get-auto-save-status', () => {
@@ -327,8 +318,10 @@ ipcMain.handle('get-settings', () => {
     return loadSettings();
 });
 
-ipcMain.handle('save-settings', (event, newSettings) => {
+ipcMain.handle('save-settings', async (event, newSettings) => {
     saveSettings(newSettings);
+    // If content path changed, ensure content.json exists in the new location
+    await ensureContentGenerated();
     // If content path changed, we might need to reload window or notify frontend
     // For now, frontend handles reload
     return { success: true };

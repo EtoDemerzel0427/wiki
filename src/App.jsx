@@ -853,7 +853,7 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
         title="Settings"
         onConfirm={async () => {
-          saveConfig({
+          await saveConfig({
             title: settingsTitle,
             fontTheme: settingsFontTheme,
             fontSize: settingsFontSize

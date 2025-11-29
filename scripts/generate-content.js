@@ -3,14 +3,10 @@ import path from 'path';
 import matter from 'gray-matter';
 import { glob } from 'glob';
 
-const args = process.argv.slice(2);
-const customContentDir = args[0];
-const customOutputFile = args[1];
+export async function generateContent(customContentDir, customOutputFile) {
+    const CONTENT_DIR = customContentDir || path.join(process.cwd(), 'content');
+    const OUTPUT_FILE = customOutputFile || path.join(process.cwd(), 'public', 'content.json');
 
-const CONTENT_DIR = customContentDir || path.join(process.cwd(), 'content');
-const OUTPUT_FILE = customOutputFile || path.join(process.cwd(), 'public', 'content.json');
-
-async function generate() {
     const files = await glob('**/*.md', { cwd: CONTENT_DIR });
     const nodes = [];
     const folderSet = new Set();
@@ -158,4 +154,9 @@ async function generate() {
     console.log(`Generated content.json with ${nodes.length} items`);
 }
 
-generate();
+// Check if running directly (ESM)
+import { fileURLToPath } from 'url';
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    const args = process.argv.slice(2);
+    generateContent(args[0], args[1]);
+}

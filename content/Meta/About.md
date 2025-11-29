@@ -1,12 +1,10 @@
 ---
-title: 关于这个 Wiki
+title: 关于这个 Wik
 slug: about
 date: 2025-11-28
 tags: [Intro, About]
 category: Meta
 ---
-
-# 欢迎来到我的数字花园
 
 这是一个存放我零碎想法、代码片段和学习笔记的地方。
 

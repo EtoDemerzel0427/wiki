@@ -349,7 +349,10 @@ category: ${initialCategory}
             await writeFile(configPath, JSON.stringify(newConfig, null, 2));
 
             // Trigger generator to update content.json
-            await window.electronAPI.runGenerator();
+            const result = await window.electronAPI.runGenerator();
+            if (!result.success) {
+                alert("Failed to regenerate content: " + result.error);
+            }
         } catch (error) {
             console.error("Failed to save config:", error);
             alert("Failed to save settings: " + error.message);
