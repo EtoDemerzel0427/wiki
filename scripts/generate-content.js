@@ -8,9 +8,16 @@ export async function generateContent(customContentDir, customOutputFile) {
     const OUTPUT_FILE = customOutputFile || path.join(process.cwd(), 'public', 'content.json');
 
     const files = await glob('**/*.md', { cwd: CONTENT_DIR });
+    const dirs = await glob('**/', { cwd: CONTENT_DIR }); // Scan for directories
     const nodes = [];
     const folderSet = new Set();
     const fileMap = new Map(); // Map to store file nodes by ID
+
+    // Add all directories to folderSet
+    dirs.forEach(dir => {
+        const dirPath = dir.replace(/\\/g, '/').replace(/\/$/, '');
+        if (dirPath && dirPath !== '.') folderSet.add(dirPath);
+    });
 
     // 1. Process files
     files.forEach((file) => {

@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [react()],
   base: process.env.ELECTRON_BUILD === 'true' ? './' : (mode === 'production' ? '/wiki/' : '/'),
   build: {
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -25,11 +26,13 @@ export default defineConfig(({ mode }) => ({
             if (id.includes('react') || id.includes('react-dom')) {
               return 'react-vendor';
             }
+            if (id.includes('@dnd-kit')) {
+              return 'dnd-kit';
+            }
             return 'vendor';
           }
         }
-      },
-      chunkSizeWarningLimit: 1000
+      }
     }
   }
 }))

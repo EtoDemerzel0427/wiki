@@ -372,6 +372,186 @@ category: ${initialCategory}
         }
     };
 
+    const handleMove = async (movedItemId, targetItemId, action) => {
+        if (!isElectron()) return;
+
+        // Find nodes
+        const findNode = (id) => {
+            // Flatten notes for search? Or just search recursively?
+            // Since notes is flat list of all nodes (from content.json), we can just find.
+            return notes.find(n => n.id === id);
+        };
+
+        const movedNode = findNode(movedItemId);
+        const targetNode = targetItemId === 'root' ? { id: 'root', isFolder: true } : findNode(targetItemId);
+
+        if (!movedNode || !targetNode) return;
+
+        // Prevent moving into self or children (if folder)
+        if (movedNode.isFolder && targetItemId !== 'root' && targetItemId.startsWith(movedItemId + '/')) {
+            alert("Cannot move a folder into itself.");
+            return;
+        }
+
+        try {
+            const sourceParentId = movedNode.parentId;
+            let targetParentId;
+
+            if (targetItemId === 'root') {
+                targetParentId = null;
+            } else if (action === 'inside') {
+                targetParentId = targetNode.id;
+            } else {
+                targetParentId = targetNode.parentId;
+            }
+
+            // Case 1: Moving to a different folder (or root)
+            if (sourceParentId !== targetParentId) {
+                // Ensure sourcePath is relative (starts with content/)
+                // movedNode.filePath might be absolute if it came from a fresh load? 
+                // Actually, our loadNotes sets it to relative usually.
+                // But let's be safe and reconstruct it from ID/ParentID if possible, or just use what we have but ensure it's relative.
+
+                // Better: Reconstruct sourcePath from parentId and fileName to be sure.
+                const fileName = movedNode.fileName;
+                const sourceDir = sourceParentId ? `content/${sourceParentId}` : 'content';
+                const sourcePath = `${sourceDir}/${fileName}`;
+
+                const targetDir = targetParentId ? `content/${targetParentId}` : 'content';
+                const targetPath = `${targetDir}/${fileName}`;
+
+                console.log(`Moving ${sourcePath} to ${targetPath}`); // Debug log
+
+                // Move file/dir
+                await renamePath(sourcePath, targetPath);
+
+                // Update _meta.json in source
+                await removeFromMeta(sourceParentId, movedNode.fileName.replace('.md', ''));
+
+                // Update _meta.json in target
+                // If 'inside', append to end.
+                // If 'before'/'after', insert at specific position.
+                // But 'before'/'after' implies we are in the target folder's list.
+                // Wait, if sourceParentId !== targetParentId, and action is 'before'/'after',
+                // it means we dragged from Folder A to position X in Folder B.
+
+                await addToMeta(targetParentId, fileName.replace('.md', ''), targetItemId, action);
+
+                // Update local state optimistically?
+                // It's complex to update paths for all children if it's a folder.
+                // Easiest is to reload.
+                await window.electronAPI.runGenerator();
+                await loadNotes();
+
+            } else {
+                // Case 2: Reordering within same folder
+
+                // Edge case: If target is root (and we are in root), it's a no-op for reordering unless we want to move to end?
+                // But targetNode would be the root object which has no fileName.
+                if (targetItemId === 'root') return;
+
+                // Only need to update _meta.json
+                const parentPath = sourceParentId ? `content/${sourceParentId}` : 'content';
+                const metaPath = `${parentPath}/_meta.json`;
+
+                let meta = [];
+                try {
+                    const content = await readFile(metaPath);
+                    meta = JSON.parse(content);
+                } catch (e) {
+                    // Should exist if we are reordering
+                }
+
+                const movedName = movedNode.fileName.replace('.md', '');
+                const targetName = targetNode.fileName ? targetNode.fileName.replace('.md', '') : '';
+
+                if (!targetName) return; // Safety check
+
+                // Remove moved item
+                meta = meta.filter(n => n !== movedName);
+
+                // Insert at new position
+                const targetIndex = meta.indexOf(targetName);
+                if (targetIndex !== -1) {
+                    if (action === 'before') {
+                        meta.splice(targetIndex, 0, movedName);
+                    } else {
+                        meta.splice(targetIndex + 1, 0, movedName);
+                    }
+                } else {
+                    meta.push(movedName);
+                }
+
+                await writeFile(metaPath, JSON.stringify(meta, null, 2));
+
+                // Trigger generator
+                await window.electronAPI.runGenerator();
+                // We can also update local state sortIndex if we want instant feedback without reload
+                // But generator is fast enough usually.
+                await loadNotes();
+            }
+
+        } catch (error) {
+            console.error("Move failed:", error);
+            alert("Failed to move item: " + error.message);
+            // Ensure we reload notes to sync UI with file system state
+            await loadNotes();
+        }
+    };
+
+    const addToMeta = async (parentId, nameToAdd, targetItemId, action) => {
+        const parentPath = parentId ? `content/${parentId}` : 'content';
+        const metaPath = `${parentPath}/_meta.json`;
+
+        let meta = [];
+        try {
+            const content = await readFile(metaPath);
+            meta = JSON.parse(content);
+        } catch (e) {
+            // Create if not exists
+        }
+
+        // If action is inside, just push (or we could support inside-at-index but UI usually just drops on folder)
+        if (action === 'inside') {
+            if (!meta.includes(nameToAdd)) {
+                meta.push(nameToAdd);
+            }
+        } else {
+            // Insert relative to target
+            // targetItemId is the full ID, we need the filename part for meta lookup
+            // But wait, targetItemId might be 'Folder/Subfolder/File'. 
+            // If we are in 'Folder/Subfolder', the meta contains 'File'.
+            const targetName = targetItemId.split('/').pop(); // This is a guess, safer to find node
+            // But we don't have node here easily without passing it.
+            // Let's rely on the fact that meta contains basenames.
+
+            // Actually, we should check if targetName exists in meta.
+            // If not, just push.
+
+            // Let's refine:
+            // We need to find the index of the target item in the meta list.
+            // The target item's name in meta is its basename (no extension).
+
+            // We need to look up the target node to get its filename properly?
+            // Or just assume targetItemId's last part is the name?
+            // IDs are paths without extension usually.
+            const targetBaseName = targetItemId.split('/').pop();
+
+            const targetIndex = meta.indexOf(targetBaseName);
+            if (targetIndex !== -1) {
+                if (action === 'before') {
+                    meta.splice(targetIndex, 0, nameToAdd);
+                } else {
+                    meta.splice(targetIndex + 1, 0, nameToAdd);
+                }
+            } else {
+                meta.push(nameToAdd);
+            }
+        }
+
+        await writeFile(metaPath, JSON.stringify(meta, null, 2));
+    };
+
     return {
         notes,
         loading,
@@ -381,8 +561,8 @@ category: ${initialCategory}
         handleCreateDir,
         handleDelete,
         handleRename,
-        handleRename,
         handleReorder,
+        handleMove,
         wikiConfig,
         saveConfig
     };

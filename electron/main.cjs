@@ -239,33 +239,13 @@ app.whenReady().then(async () => {
     });
 
     ipcMain.handle('run-generator', async () => {
-        const settings = loadSettings();
-
-        let scriptPath;
-        if (app.isPackaged) {
-            scriptPath = path.join(app.getAppPath(), 'scripts/generate-content.js');
-        } else {
-            scriptPath = path.join(__dirname, '../scripts/generate-content.js');
-        }
-
-        let contentDir = undefined;
-        let outputFile = undefined;
-
-        if (settings.contentPath) {
-            contentDir = settings.contentPath;
-            outputFile = path.join(settings.contentPath, 'content.json');
-        }
-
-        try {
-            const { pathToFileURL } = require('url');
-            const scriptUrl = pathToFileURL(scriptPath).href;
-            const { generateContent } = await import(scriptUrl);
-            await generateContent(contentDir, outputFile);
+        // If ContentManager is active, use it for immediate consistency
+        if (contentManager) {
+            await contentManager.scan();
             return { success: true };
-        } catch (error) {
-            console.error(`Generator error: ${error}`);
-            return { success: false, error: error.message };
         }
+
+        return { success: false, error: "ContentManager not initialized" };
     });
 
     ipcMain.handle('get-auto-save-status', () => {

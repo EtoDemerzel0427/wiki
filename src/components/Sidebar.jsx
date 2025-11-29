@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Search,
     Folder,
@@ -18,14 +18,29 @@ import {
     Moon,
     Settings
 } from 'lucide-react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragOverlay,
+    defaultDropAnimationSideEffects,
+    useDroppable
+} from '@dnd-kit/core';
+import {
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    SortableContext,
+    useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { isElectron } from '../utils/fileSystem';
 
 const ContextMenu = ({ x, y, onClose, onAction, item, isFirst, isLast }) => {
     if (!item) return null;
 
-    // If not in Electron, we might not want to show any context menu, 
-    // or only read-only options if there were any. 
-    // For now, since all actions are modification actions, we return null for web.
     if (!isElectron()) return null;
 
     return (
@@ -82,7 +97,25 @@ const ContextMenu = ({ x, y, onClose, onAction, item, isFirst, isLast }) => {
     );
 };
 
-const TreeNode = ({ node, level = 0, activeNoteId, onSelect, expandedNodes, toggleNode, onContextMenu }) => {
+const SortableTreeItem = ({ node, level = 0, activeNoteId, onSelect, expandedNodes, toggleNode, onContextMenu, dragOverInfo }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: node.id, data: node });
+
+    const style = {
+        transform: isDragging ? CSS.Translate.toString(transform) : undefined, // Only move the dragged item, keep others static for insertion line
+        transition,
+        paddingLeft: `${level * 12 + 12}px`,
+        opacity: isDragging ? 0.5 : 1,
+        position: 'relative',
+        zIndex: isDragging ? 999 : 'auto'
+    };
+
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedNodes.includes(node.id);
     const isActive = activeNoteId === node.id;
@@ -92,14 +125,32 @@ const TreeNode = ({ node, level = 0, activeNoteId, onSelect, expandedNodes, togg
         onContextMenu(e, node);
     };
 
+    // Visual Feedback based on dragOverInfo
+    const isOver = dragOverInfo?.overId === node.id;
+    const dropPosition = isOver ? dragOverInfo.position : null;
+
     return (
-        <div className="select-none">
+        <div className="select-none relative">
+            {/* Drop Indicators */}
+            {dropPosition === 'top' && (
+                <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none flex items-center" style={{ marginLeft: `${level * 12}px` }}>
+                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full -ml-0.5"></div>
+                    <div className="h-0.5 bg-indigo-500 flex-1"></div>
+                </div>
+            )}
+
             <div
-                className={`flex items-center gap-2 px-3 py-1.5 my-0.5 rounded-md cursor-pointer text-sm transition-colors group relative ${isActive && !node.isFolder
-                    ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                style={{ paddingLeft: `${level * 12 + 12}px` }}
+                ref={setNodeRef}
+                style={style}
+                {...attributes}
+                {...listeners}
+                className={`flex items-center gap-2 px-3 py-1.5 my-0.5 rounded-md cursor-pointer text-sm transition-colors group relative 
+                    ${isActive && !node.isFolder
+                        ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }
+                    ${dropPosition === 'inside' ? 'ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/50 z-10' : ''}
+                `}
                 onClick={() => {
                     if (hasChildren || node.isFolder) {
                         toggleNode(node.id);
@@ -123,7 +174,6 @@ const TreeNode = ({ node, level = 0, activeNoteId, onSelect, expandedNodes, togg
 
                 <span className="truncate flex-1">{node.title}</span>
 
-                {/* Context Menu Trigger (visible on hover) - Electron Only */}
                 {isElectron() && (
                     <button
                         className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
@@ -137,22 +187,78 @@ const TreeNode = ({ node, level = 0, activeNoteId, onSelect, expandedNodes, togg
                 )}
             </div>
 
-            {isExpanded && hasChildren && (
-                <div>
-                    {node.children.map((child, index) => (
-                        <TreeNode
-                            key={child.id}
-                            node={child}
-                            level={level + 1}
-                            activeNoteId={activeNoteId}
-                            onSelect={onSelect}
-                            expandedNodes={expandedNodes}
-                            toggleNode={toggleNode}
-                            onContextMenu={onContextMenu}
-                        />
-                    ))}
+            {dropPosition === 'bottom' && (
+                <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none flex items-center" style={{ marginLeft: `${level * 12}px` }}>
+                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full -ml-0.5"></div>
+                    <div className="h-0.5 bg-indigo-500 flex-1"></div>
                 </div>
             )}
+
+            {isExpanded && hasChildren && (
+                <SortableContext items={node.children.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                    <div>
+                        {node.children.map((child) => (
+                            <SortableTreeItem
+                                key={child.id}
+                                node={child}
+                                level={level + 1}
+                                activeNoteId={activeNoteId}
+                                onSelect={onSelect}
+                                expandedNodes={expandedNodes}
+                                toggleNode={toggleNode}
+                                onContextMenu={onContextMenu}
+                                dragOverInfo={dragOverInfo}
+                            />
+                        ))}
+                    </div>
+                </SortableContext>
+            )}
+        </div>
+    );
+};
+
+const RootDroppable = ({ children, isElectron, onCreateFile, onCreateDir, dragOverInfo }) => {
+    const { setNodeRef, isOver } = useDroppable({
+        id: 'root-drop-zone',
+    });
+
+    // We can also use dragOverInfo here if we want consistent styling logic, 
+    // but useDroppable is simple enough for the root header.
+    // Actually, let's check if we are dragging over root in dragOverInfo to show highlight.
+    const isRootOver = isOver || (dragOverInfo?.overId === 'root-drop-zone');
+
+    return (
+        <div
+            ref={setNodeRef}
+            className={`p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isRootOver ? 'bg-indigo-50 dark:bg-indigo-900/30 ring-2 ring-inset ring-indigo-500/50' : ''}`}
+            onClick={() => { }}
+        >
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Explorer</span>
+            {isElectron && (
+                <div className="flex gap-1">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onCreateFile(null);
+                        }}
+                        className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
+                        title="New Page in Root"
+                    >
+                        <Plus size={14} className="text-slate-500" />
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onCreateDir(null);
+                        }}
+                        className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
+                        title="New Folder in Root"
+                    >
+                        <Folder size={14} className="text-slate-500" />
+                    </button>
+                </div>
+            )}
+            {children}
         </div>
     );
 };
@@ -176,19 +282,138 @@ const Sidebar = ({
     onDelete,
     onRename,
     onReorder,
+    onMove,
     wikiTitle,
     onOpenSettings,
     isDesktopSidebarOpen = true
 }) => {
     const [contextMenu, setContextMenu] = useState(null);
+    const [activeDragId, setActiveDragId] = useState(null);
+    const [dragOverInfo, setDragOverInfo] = useState(null); // { overId, position: 'inside' | 'top' | 'bottom' }
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragStart = (event) => {
+        setActiveDragId(event.active.id);
+        setDragOverInfo(null);
+    };
+
+    const handleDragMove = (event) => {
+        const { active, over } = event;
+
+        if (!over) {
+            setDragOverInfo(null);
+            return;
+        }
+
+        if (active.id === over.id) {
+            setDragOverInfo(null);
+            return;
+        }
+
+        // Calculate drop position
+        // We need the pointer coordinates relative to the over element.
+        // dnd-kit doesn't give pointer coords directly in event, but we can infer from active rect if using closestCenter?
+        // Actually, active.rect.current.translated gives the current position of the dragged item.
+
+        const activeRect = active.rect.current.translated;
+        const overRect = over.rect; // This is the rect of the drop target
+
+        if (!activeRect || !overRect) return;
+
+        // Use the center of the dragged item to determine position
+        const pointerY = activeRect.top + activeRect.height / 2;
+        const relativeY = pointerY - overRect.top;
+        const ratio = relativeY / overRect.height;
+
+        let position = 'inside';
+        const node = over.data.current;
+
+        if (over.id === 'root-drop-zone') {
+            position = 'inside';
+        } else if (node) {
+            if (node.isFolder) {
+                // Folder logic: Top 25% -> Top, Bottom 25% -> Bottom, Middle 50% -> Inside
+                if (ratio < 0.25) position = 'top';
+                else if (ratio > 0.75) position = 'bottom';
+                else position = 'inside';
+            } else {
+                // File logic: Top 50% -> Top, Bottom 50% -> Bottom
+                if (ratio < 0.5) position = 'top';
+                else position = 'bottom';
+            }
+        }
+
+        setDragOverInfo({
+            overId: over.id,
+            position
+        });
+    };
+
+    const handleDragEnd = (event) => {
+        const { active, over } = event;
+        setActiveDragId(null);
+        setDragOverInfo(null);
+
+        if (!over) return;
+
+        if (active.id !== over.id) {
+            // Use the calculated position from dragOverInfo (re-calculate to be safe or use state if reliable)
+            // Re-calculating is safer as state might be slightly stale or cleared.
+
+            const activeRect = active.rect.current.translated;
+            const overRect = over.rect;
+
+            let position = 'inside';
+
+            if (over.id === 'root-drop-zone') {
+                position = 'inside';
+            } else if (activeRect && overRect) {
+                const pointerY = activeRect.top + activeRect.height / 2;
+                const relativeY = pointerY - overRect.top;
+                const ratio = relativeY / overRect.height;
+                const node = over.data.current;
+
+                if (node) {
+                    if (node.isFolder) {
+                        if (ratio < 0.25) position = 'top';
+                        else if (ratio > 0.75) position = 'bottom';
+                        else position = 'inside';
+                    } else {
+                        if (ratio < 0.5) position = 'top';
+                        else position = 'bottom';
+                    }
+                }
+            }
+
+            // Map position to action
+            let action = 'inside';
+            if (position === 'top') action = 'before';
+            if (position === 'bottom') action = 'after';
+
+            // Special case: Root
+            if (over.id === 'root-drop-zone') {
+                if (onMove) onMove(active.id, 'root', 'inside');
+                return;
+            }
+
+            if (onMove) {
+                onMove(active.id, over.id, action);
+            }
+        }
+    };
 
     const handleContextMenu = (e, node) => {
         e.preventDefault();
-        // Find siblings to determine if first/last
-        // This is a bit expensive, maybe pass index/siblings down?
-        // For now, let's just pass the node and handle logic in parent or here if we have the tree.
-        // We can find the parent in the tree.
-
         setContextMenu({
             x: e.clientX,
             y: e.clientY,
@@ -206,7 +431,6 @@ const Sidebar = ({
         if (action === 'createDir') onCreateDir(item);
     };
 
-    // Close context menu on click outside
     React.useEffect(() => {
         const handleClick = () => setContextMenu(null);
         window.addEventListener('click', handleClick);
@@ -230,16 +454,6 @@ const Sidebar = ({
                     </button>
                 </div>
 
-                {/* Actions Bar (Electron Only) - REMOVED as per user request, moved to Explorer header */}
-                {/* 
-            {isElectron() && (
-                <div className="px-3 mb-2 flex gap-2">
-                    ...
-                </div>
-            )} 
-            */}
-
-                {/* Search & Tag Indicator */}
                 <div className="px-3 mb-2 space-y-2">
                     <div className="relative group">
                         <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
@@ -259,8 +473,7 @@ const Sidebar = ({
                     )}
                 </div>
 
-                {/* Navigation Content */}
-                <nav className="flex-1 overflow-y-auto px-2 pb-4 custom-scrollbar">
+                <nav className="flex-1 overflow-y-auto px-2 pb-12 custom-scrollbar">
                     {(searchQuery || selectedTag) ? (
                         <div className="mt-2">
                             <div className="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
@@ -282,54 +495,48 @@ const Sidebar = ({
                             )}
                         </div>
                     ) : (
-                        <div className="mt-2">
-                            {/* Explorer Header - Click to clear selection (Root) */}
-                            <div
-                                className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                                onClick={() => {
-                                    // Clear active note to allow root creation
-                                    // We need a way to tell parent to clear activeNoteId
-                                    // For now, we can just expose a prop or use the "New Page" button logic
-                                    // Actually, let's add a "+" button here for Root creation explicitly
-                                }}
-                            >
-                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Explorer</span>
-                                {isElectron() && (
-                                    <div className="flex gap-1">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                onCreateFile(null); // Pass null for root
-                                            }}
-                                            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
-                                            title="New Page in Root"
-                                        >
-                                            <Plus size={14} className="text-slate-500" />
-                                        </button>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                onCreateDir(null); // Pass null for root
-                                            }}
-                                            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
-                                            title="New Folder in Root"
-                                        >
-                                            <Folder size={14} className="text-slate-500" />
-                                        </button>
-                                    </div>
-                                )}
-                            </div>            {treeData.map((node, index) => (
-                                <TreeNode
-                                    key={node.id}
-                                    node={node}
-                                    activeNoteId={activeNoteId}
-                                    onSelect={(id) => onNavigate(id)}
-                                    expandedNodes={expandedNodes}
-                                    toggleNode={toggleNode}
-                                    onContextMenu={handleContextMenu}
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragStart={handleDragStart}
+                            onDragMove={handleDragMove}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <div className="mt-2">
+                                <RootDroppable
+                                    isElectron={isElectron()}
+                                    onCreateFile={onCreateFile}
+                                    onCreateDir={onCreateDir}
+                                    dragOverInfo={dragOverInfo}
                                 />
-                            ))}
-                        </div>
+
+                                <SortableContext items={treeData.map(n => n.id)} strategy={verticalListSortingStrategy}>
+                                    <div>
+                                        {treeData.map((node) => (
+                                            <SortableTreeItem
+                                                key={node.id}
+                                                node={node}
+                                                activeNoteId={activeNoteId}
+                                                onSelect={(id) => onNavigate(id)}
+                                                expandedNodes={expandedNodes}
+                                                toggleNode={toggleNode}
+                                                onContextMenu={handleContextMenu}
+                                                dragOverInfo={dragOverInfo}
+                                            />
+                                        ))}
+                                    </div>
+                                </SortableContext>
+                            </div>
+
+                            {/* Drag Overlay for smooth visuals */}
+                            <DragOverlay>
+                                {activeDragId ? (
+                                    <div className="px-3 py-1.5 bg-white dark:bg-slate-800 shadow-lg rounded-md border border-indigo-200 dark:border-indigo-800 opacity-90">
+                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Moving...</span>
+                                    </div>
+                                ) : null}
+                            </DragOverlay>
+                        </DndContext>
                     )}
                 </nav>
 
@@ -340,11 +547,9 @@ const Sidebar = ({
                         item={contextMenu.item}
                         onAction={handleAction}
                         onClose={() => setContextMenu(null)}
-                    // We can pass isFirst/isLast if we calculate it
                     />
                 )}
 
-                {/* Settings Button (Electron Only) */}
                 {isElectron() && (
                     <div className="p-4 border-t border-slate-200 dark:border-slate-800">
                         <button

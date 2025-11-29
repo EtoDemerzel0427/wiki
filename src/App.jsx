@@ -101,6 +101,7 @@ export default function App() {
     handleDelete,
     handleRename: fsHandleRename,
     handleReorder,
+    handleMove,
     wikiConfig,
     saveConfig
   } = useFileSystem();
@@ -538,7 +539,7 @@ export default function App() {
     if (isTitle) {
       // Decode URI component just in case
       const decodedTitle = decodeURIComponent(identifier);
-      target = notes.find(n => n.title.toLowerCase() === decodedTitle.toLowerCase());
+      target = notes.find(n => (n.title || '').toLowerCase() === decodedTitle.toLowerCase());
     } else {
       // Try to find by ID or Slug
       target = notes.find(n => n.id === identifier || n.slug === identifier);
@@ -569,8 +570,8 @@ export default function App() {
       const q = searchQuery.toLowerCase();
       const matchesTag = selectedTag ? note.tags?.includes(selectedTag) : true;
       const matchesSearch = !q || (
-        note.title.toLowerCase().includes(q) ||
-        note.content?.toLowerCase().includes(q)
+        (note.title || '').toLowerCase().includes(q) ||
+        (note.content || '').toLowerCase().includes(q)
       );
 
       return matchesTag && matchesSearch;
@@ -623,6 +624,7 @@ export default function App() {
         onDelete={(item) => openModal('delete', item)}
         onRename={(item) => openModal('rename', item)}
         onReorder={handleReorder}
+        onMove={handleMove}
         wikiTitle={wikiConfig?.title || "MetaWiki"}
         onOpenSettings={() => setIsSettingsOpen(true)}
         isDesktopSidebarOpen={isDesktopSidebarOpen}
