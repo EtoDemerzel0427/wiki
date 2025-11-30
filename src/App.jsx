@@ -592,7 +592,7 @@ export default function App() {
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 z-20">
         <span className="font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
-          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="w-6 h-6" /> {wikiConfig?.title || "MetaWiki"}
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="w-6 h-6" /> {wikiConfig?.title || "RectoWiki"}
         </span>
         <div className="flex gap-2">
           <button onClick={() => setDarkMode(!darkMode)} className="p-2 text-slate-600 dark:text-slate-400">
@@ -625,7 +625,7 @@ export default function App() {
         onRename={(item) => openModal('rename', item)}
         onReorder={handleReorder}
         onMove={handleMove}
-        wikiTitle={wikiConfig?.title || "MetaWiki"}
+        wikiTitle={wikiConfig?.title || "RectoWiki"}
         onOpenSettings={() => setIsSettingsOpen(true)}
         isDesktopSidebarOpen={isDesktopSidebarOpen}
       />
@@ -653,7 +653,7 @@ export default function App() {
                     content={fileContent}
                     metadata={viewMetadata}
                     activeNote={activeNote}
-                    onNavigate={(id) => handleNavigate(id)}
+                    onNavigate={handleNavigate}
                     selectedTag={selectedTag}
                     onTagClick={setSelectedTag}
                     fontSize={effectiveFontSize}
@@ -709,7 +709,7 @@ export default function App() {
                     content={fileContent}
                     metadata={viewMetadata}
                     activeNote={activeNote}
-                    onNavigate={(id) => handleNavigate(id)}
+                    onNavigate={handleNavigate}
                     selectedTag={selectedTag}
                     onTagClick={setSelectedTag}
                     fontSize={effectiveFontSize}

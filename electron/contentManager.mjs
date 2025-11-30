@@ -103,7 +103,7 @@ class ContentManager {
                 for (const key in data) {
                     const value = data[key];
                     if (value instanceof Date) {
-                        safeData[key] = value.toISOString();
+                        safeData[key] = value.toISOString().split('T')[0];
                     } else {
                         safeData[key] = value;
                     }

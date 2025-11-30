@@ -101,6 +101,11 @@ function createWindow() {
     } else {
         win.loadFile(path.join(__dirname, '../dist/index.html'));
     }
+
+    // Pipe renderer console logs to terminal
+    win.webContents.on('console-message', (event, level, message, line, sourceId) => {
+        console.log(`[Renderer] ${message}`);
+    });
 }
 
 // Disable hardware acceleration to fix GPU crashes

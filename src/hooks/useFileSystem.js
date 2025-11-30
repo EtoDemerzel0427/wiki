@@ -4,7 +4,7 @@ import { parseFrontmatter, stringifyFrontmatter } from '../utils/frontmatter';
 
 export const useFileSystem = () => {
     const [notes, setNotes] = useState([]);
-    const [wikiConfig, setWikiConfig] = useState({ title: "MetaWiki" });
+    const [wikiConfig, setWikiConfig] = useState({ title: "RectoWiki" });
     const [loading, setLoading] = useState(true);
 
     const loadNotes = useCallback(async (isBackground = false) => {

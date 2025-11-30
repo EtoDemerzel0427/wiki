@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="public/logo.png" alt="MetaWiki Logo" width="120" height="120" />
-  <h1>Meta Wiki</h1>
+  <img src="public/logo.png" alt="RectoWiki Logo" width="120" height="120" />
+  <h1>RectoWiki</h1>
   <p>
     <b>A modern, personal wiki application built with React, Vite, and Electron.</b>
   </p>
@@ -18,7 +18,7 @@
   </p>
 </div>
 
-**Meta Wiki** offers the best of both worlds: a **Static Web Wiki** for hosting your knowledge online, and a **Native Desktop App** for offline editing and management.
+**RectoWiki** offers the best of both worlds: a **Static Web Wiki** for hosting your knowledge online, and a **Native Desktop App** for offline editing and management.
 
 Built with React, Vite, and Electron, it seamlessly bridges the gap between a public digital garden and a private, local-first note-taking tool.
 
@@ -37,7 +37,7 @@ Built with React, Vite, and Electron, it seamlessly bridges the gap between a pu
 ## Project Structure
 
 ```
-meta-wiki/
+recto-wiki/
 ├── content/           # Your Markdown files (the wiki content)
 ├── public/            # Static assets
 │   ├── content.json   # Generated content index (for dev/web)
@@ -65,8 +65,8 @@ meta-wiki/
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/meta-wiki.git
-    cd meta-wiki
+    git clone https://github.com/yourusername/recto-wiki.git
+    cd recto-wiki
     ```
 
 2.  Install dependencies:
@@ -128,7 +128,7 @@ This project provides a robust desktop application wrapper built with Electron.
     > **Note for macOS Users:**
     > If you see a "damaged" error when opening the app, run this command in your terminal to bypass Gatekeeper:
     > ```bash
-    > xattr -cr /Applications/MetaWiki.app
+    > xattr -cr /Applications/RectoWiki.app
     > ```
 
 ## Testing

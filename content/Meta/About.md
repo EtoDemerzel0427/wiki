@@ -6,7 +6,7 @@ tags: [Intro, About]
 category: Meta
 ---
 
-这是一个**展示专用**的 Wiki，用于演示 MetaWiki 系统的功能与设计。
+这是一个**展示专用**的 Wiki，用于演示 RectoWiki 系统的功能与设计。
 
 这里的内容仅作为示例，展示如何通过 Markdown 文件构建一个现代化的数字花园。
 

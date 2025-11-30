@@ -4,7 +4,8 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: process.env.ELECTRON_BUILD === 'true' ? './' : (mode === 'production' ? '/wiki/' : '/'),
+  // Electron needs './', GitHub Pages needs '/repo-name/', Local dev needs '/'
+  base: process.env.ELECTRON_BUILD === 'true' ? './' : (process.env.REPO_NAME ? `/${process.env.REPO_NAME}/` : '/'),
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

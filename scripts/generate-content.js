@@ -141,7 +141,7 @@ export async function generateContent(customContentDir, customOutputFile) {
     }
 
     // Read config
-    let config = { title: "MetaWiki" };
+    let config = { title: "RectoWiki" };
     const configPath = path.join(CONTENT_DIR, '_config.json');
     if (fs.existsSync(configPath)) {
         try {
