@@ -10,7 +10,7 @@
     </a>
   </p>
   <p>
-    <b>Latest Release: v0.3.0 is out!</b> <a href="https://github.com/EtoDemerzel0427/RectoWiki/releases">Download for macOS/Windows/Linux</a>
+    <b>Latest Release: v0.4.0 is out!</b> <a href="https://github.com/EtoDemerzel0427/RectoWiki/releases">Download for macOS/Windows/Linux</a>
   </p>
   <p>
     <img src="docs/images/web-view.png" alt="Web View" width="45%" />
