@@ -5,12 +5,12 @@
     <b>A modern, personal wiki application built with React, Vite, and Electron.</b>
   </p>
   <p>
-    <a href="https://github.com/EtoDemerzel0427/wiki/releases">
-      <img src="https://img.shields.io/github/release-date-pre/EtoDemerzel0427/wiki" alt="GitHub Release" />
+    <a href="https://github.com/EtoDemerzel0427/RectoWiki/releases">
+      <img src="https://img.shields.io/github/release-date-pre/EtoDemerzel0427/RectoWiki" alt="GitHub Release" />
     </a>
   </p>
   <p>
-    <b>Latest Release: v0.3.0 is out!</b> <a href="https://github.com/EtoDemerzel0427/wiki/releases">Download for macOS/Windows/Linux</a>
+    <b>Latest Release: v0.3.0 is out!</b> <a href="https://github.com/EtoDemerzel0427/RectoWiki/releases">Download for macOS/Windows/Linux</a>
   </p>
   <p>
     <img src="docs/images/web-view.png" alt="Web View" width="45%" />

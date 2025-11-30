@@ -44,13 +44,13 @@
       {
         "provider": "github",
         "owner": "EtoDemerzel0427",
-        "repo": "wiki"
+        "repo": "RectoWiki"
       }
     ]
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/EtoDemerzel0427/wiki.git"
+    "url": "git+https://github.com/EtoDemerzel0427/RectoWiki.git"
   },
   "main": "electron/main.cjs",
   "dependencies": {
